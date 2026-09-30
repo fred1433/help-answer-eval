@@ -132,6 +132,7 @@ def build_jobs(cfg, dense=None, reranker=None, only=None, notes_append=""):
         transfer = [q for q in transfer if q["id"] in only]
     sysmsg = systems.instruction(cfg["escalate_to"], cfg.get("business", "a small business"))
     budget = cfg.get("budget_words", 1000)
+    version = cfg.get("comparator_version", 2)
     items = [(c["experiment"], c["id"], c["question"], None, c["expect"], c["sources"], True) for c in spec["cases"]]
     for q in transfer:
         expect = {"does": "gives the main action of the source answer below to this customer",
@@ -144,8 +145,8 @@ def build_jobs(cfg, dense=None, reranker=None, only=None, notes_append=""):
         experiment, case_id, question, held, expect, source_ids, oracle = it
         visible = entries if held is None else without_variants(entries, by_id[held])[0]
         ctx = {"A": systems.context_full(visible),
-               "B": systems.PassageReader(visible, dense, reranker, budget).context(question),
-               "C": systems.AnswerReader(visible, dense, reranker, budget).context(question)}
+               "B": systems.PassageReader(visible, dense, reranker, budget, version).context(question),
+               "C": systems.AnswerReader(visible, dense, reranker, budget, version).context(question)}
         if oracle:
             ctx["O"] = "\n\n".join(systems.fmt_entry(by_id[i]) for i in source_ids)
         sources = "\n\n".join(systems.fmt_entry(by_id[i]) if i in by_id else i for i in source_ids)

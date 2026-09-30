@@ -16,13 +16,15 @@ from pathlib import Path
 CLAUDE = os.environ.get("HAE_CLAUDE_BIN", "claude")
 
 
-def key(model: str, system: str, prompt: str) -> str:
-    return hashlib.sha256(json.dumps([model, system, prompt]).encode()).hexdigest()[:20]
+def key(model: str, system: str, prompt: str, sample: int = 0) -> str:
+    parts = [model, system, prompt] + ([f"sample-{sample}"] if sample else [])
+    return hashlib.sha256(json.dumps(parts).encode()).hexdigest()[:20]
 
 
-def call(model: str, system: str, prompt: str, cache_dir: Path, *, timeout: int = 600, runner=None) -> dict:
+def call(model: str, system: str, prompt: str, cache_dir: Path, *, timeout: int = 600, runner=None, sample: int = 0) -> dict:
+    """sample > 0 asks for an independent draw of the same call: a new cache slot, same inputs."""
     cache_dir.mkdir(parents=True, exist_ok=True)
-    k = key(model, system, prompt)
+    k = key(model, system, prompt, sample)
     path = cache_dir / f"{k}.json"
     if path.exists():
         return json.loads(path.read_text())

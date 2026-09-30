@@ -13,7 +13,7 @@ Every setup gets the same model, the same instruction and the same operator note
 - **C, whole-answer search**: complete entries, same retrieval and reranking, same word budget as B.
 - **O, control**: the same reader given the hand-picked source entries. It separates "not found" from "found but misused".
 
-B and C spend the same evidence budget. A reads everything and is reported apart.
+B and C spend the same evidence budget, counted on the text actually rendered. A reads everything and is reported apart. `comparator_version: 1` in the config reproduces an earlier implementation (reranker exclusions not enforced, passage headers charged per window) for replaying recorded runs.
 
 ## Three experiments
 
@@ -47,4 +47,4 @@ A real run needs a config (see `example.config.json`), a cases file you write, a
 - A help center of a few hundred entries fits in any current context window. Nothing here says how the setups compare on thousands of real support threads.
 - The expectations are the tester's reading of the published pages, not the business owner's verdict.
 - The grader is a model. Focal cases are meant to be inspected by a person; model review of a model is not human calibration.
-- The CLI exposes no temperature setting; each answer is one sample.
+- The CLI exposes no temperature setting. `llm.call(..., sample=n)` draws an independent answer to the same inputs when repeated samples are needed.

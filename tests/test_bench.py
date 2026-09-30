@@ -211,3 +211,34 @@ def test_regrade_and_intervention_only_touch_what_they_declare(tmp_path):
     rows = bench.intervene(cfg, **kw)
     assert {r["case"] for r in rows} == {"ready"} and len(rows) == 4
     assert any("EXTRA NOTE" in p and "Customer email" in p for p in prompts)
+
+
+class PickFirst(systems.Reranker):
+    """Keeps only the first candidate that mentions 'cake', leaves out the rest."""
+    def __init__(self):
+        super().__init__(scorer=None)
+
+    def scores(self, query, docs):
+        first = next((i for i, d in enumerate(docs) if "cake" in d.lower()), 0)
+        return [0.0 if i == first else -1000.0 for i in range(len(docs))]
+
+
+def test_reranker_exclusions_are_honored(entries):
+    dense = Dense(embedder=HashEmbedder())
+    new = systems.AnswerReader(entries, dense, PickFirst(), budget=500).context("cake")
+    old = systems.AnswerReader(entries, dense, PickFirst(), budget=500, version=1).context("cake")
+    assert new.count("entry:") == 1, "only the candidate the reranker kept"
+    assert old.count("entry:") > 1, "version 1 reproduces the recorded behaviour"
+
+
+def test_passage_budget_counts_rendered_text():
+    long = " ".join(f"Sentence number {i} about bread." for i in range(12))
+    pages = [faq_page(5, NEW, "2026-01-01T00:00:00", [("faq-7", "Bread", long)])]
+    es = extract_faq(pages)
+    dense = Dense(embedder=HashEmbedder())
+    for budget in (40, 60, 90):
+        ctx = systems.PassageReader(es, dense, FakeReranker(), budget=budget).context("bread")
+        assert len(ctx.split()) <= budget
+        assert ctx.count("entry:") == 1, "one header per entry"
+        sents = [s for s in ctx.split("]", 1)[1].split(". ") if s.strip()]
+        assert len(sents) == len(set(sents)), "overlapping windows are merged, not printed twice"

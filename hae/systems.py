@@ -117,6 +117,7 @@ class Retriever:
     dense: Dense
     reranker: Reranker
     candidates: int = 40
+    honor_exclusions: bool = True  # False reproduces the first recorded run (v1)
 
     def __post_init__(self):
         texts = [u[0] for u in self.units]
@@ -128,12 +129,18 @@ class Retriever:
         fused = rrf([top_k(self.bm25.scores(question), n)[:self.candidates],
                      top_k(self.dense.scores(question, self.vecs), n)[:self.candidates]])[:self.candidates]
         rs = self.reranker.scores(question, [self.units[i][0] for i in fused])
-        return [fused[j] for j in sorted(range(len(fused)), key=lambda j: (-rs[j], j))]
+        order = sorted(range(len(fused)), key=lambda j: (-rs[j], j))
+        if self.honor_exclusions:  # a candidate the reranker left out is never used
+            order = [j for j in order if rs[j] > -1000.0]
+        return [fused[j] for j in order]
 
 
 class PassageReader:
-    def __init__(self, entries, dense, reranker, budget: int = 1000):
-        self.budget = budget
+    """version=1 reproduces the first recorded run: every window charged with its own header, overlapping
+    windows printed twice. version=2 charges the text actually rendered (one header per entry, sentences merged)."""
+
+    def __init__(self, entries, dense, reranker, budget: int = 1000, version: int = 2):
+        self.budget, self.version = budget, version
         units = []
         for e in entries:
             for k, w in enumerate(windows(e.answer)):
@@ -142,10 +149,40 @@ class PassageReader:
         for i, (_, e, k) in enumerate(units):
             self.by_entry.setdefault(e.id, {})[k] = i
         self.units = units
-        self.r = Retriever(units, dense, reranker)
+        self.r = Retriever(units, dense, reranker, honor_exclusions=version >= 2)
+
+    def render(self, chosen) -> str:
+        blocks: dict[str, list] = {}
+        for g in chosen:
+            _, e, k = self.units[g]
+            blocks.setdefault(e.id, [e, []])[1].append(k)
+        out = []
+        for e, ks in blocks.values():
+            sents = sentences(e.answer)
+            idx = sorted({i for k in ks for i in range(2 * k, min(2 * k + 3, len(sents)))}) if len(sents) > 3 else list(range(len(sents)))
+            parts, prev = [], None
+            for i in idx:
+                if prev is not None and i != prev + 1:
+                    parts.append("[...]")
+                parts.append(sents[i])
+                prev = i
+            out.append(header(e) + "\n" + " ".join(parts))
+        return "\n\n".join(out)
 
     def context(self, question: str) -> str:
-        chosen: list[int] = []
+        if self.version >= 2:
+            chosen: list[int] = []
+            for i in self.r.ranked(question):
+                _, e, k = self.units[i]
+                group = [self.by_entry[e.id][j] for j in (k - 1, k, k + 1) if j in self.by_entry[e.id]]
+                new = [g for g in group if g not in chosen]
+                if not new:
+                    continue
+                if nwords(self.render(chosen + new)) > self.budget:
+                    continue
+                chosen.extend(new)
+            return self.render(chosen)
+        chosen = []
         used = 0
         for i in self.r.ranked(question):
             _, e, k = self.units[i]
@@ -169,10 +206,10 @@ class PassageReader:
 
 
 class AnswerReader:
-    def __init__(self, entries, dense, reranker, budget: int = 1000):
+    def __init__(self, entries, dense, reranker, budget: int = 1000, version: int = 2):
         self.budget = budget
         self.units = [(fmt_entry(e), e, 0) for e in entries]
-        self.r = Retriever(self.units, dense, reranker)
+        self.r = Retriever(self.units, dense, reranker, honor_exclusions=version >= 2)
 
     def context(self, question: str) -> str:
         out, used = [], 0
