@@ -1,0 +1,22 @@
+{
+ "site": "https://bakery.example",
+ "pages": "raw/pages.json",
+ "exclude_urls": [],
+ "escalate_to": "the baker",
+ "answer_model": "claude-sonnet-5",
+ "grader_model": "claude-opus-5-5",
+ "out": "runs",
+ "workers": 6,
+ "cases": "cases.json",
+ "transfer": {
+  "n": 40,
+  "seed": 7,
+  "min_words": 25,
+  "pool_urls": [
+   "https://bakery.example/help/"
+  ]
+ },
+ "reranker": "llm:claude-haiku-4-5",
+ "budget_words": 1000,
+ "business": "a neighborhood bakery"
+}

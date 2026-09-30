@@ -1,0 +1,8 @@
+private/
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+.fastembed_cache/
+data/
+runs/

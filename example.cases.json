@@ -1,0 +1,21 @@
+{
+ "notes": "Notes written by the tester. /help-old/ is an older version of /help/; where they differ we read /help/ as current.",
+ "cases": [
+  {
+   "id": "ready",
+   "experiment": "apply",
+   "pair": null,
+   "question": "When will my custom cake be ready?",
+   "expect": {
+    "does": "Says custom cakes are ready within 48 hours.",
+    "must_not": "Say 24 hours.",
+    "conditions": "",
+    "clarify_ok": false
+   },
+   "sources": [
+    "2:faq-1",
+    "1:faq-1"
+   ]
+  }
+ ]
+}
