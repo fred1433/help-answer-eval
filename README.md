@@ -44,7 +44,7 @@ A real run needs a config (see `example.config.json`), a cases file you write, a
 
 ## What it does not show
 
-- A help center of a few hundred entries fits in any current context window. Nothing here says how the setups compare on thousands of real support threads.
+- A help center of a few hundred entries fits in any current context window. Nothing here says how the setups compare on a larger archive of real support conversations.
 - The expectations are the tester's reading of the published pages, not the business owner's verdict.
 - The grader is a model. Focal cases are meant to be inspected by a person; model review of a model is not human calibration.
 - The CLI exposes no temperature setting. `llm.call(..., sample=n)` draws an independent answer to the same inputs when repeated samples are needed.
